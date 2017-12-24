@@ -1,5 +1,7 @@
 from random import random, gauss
 
+
+# Classes for actual QValues as well as estimated ones
 class QValueEstimate:
     #Look if this is right considering identation
     def add_estimate(self, value, maxval = 0, alpha, gamma):
@@ -8,7 +10,8 @@ class QValueEstimate:
             
     def __init__(self, initial):
         self.value = initial
-        
+
+
 class QValue:
     def __init__(self, mean, stdDev = None):
         self.mean = mean
@@ -19,6 +22,9 @@ class QValue:
         else:
             return gauss(self.mean, self.stdDev)
 
+#------------------------------------------------------------
+
+#Classes for different types of players
 class Player:
     def __init__(self, actions, states, initialstate = 0, alpha = 1.0, gamma = 0.0):
         self.gamma = gamma
@@ -27,6 +33,11 @@ class Player:
         
         self.probabilities = [[1/actions for _ in range(actions)] for _ in range(states)]
         self.QValueEstimates = [[QValueEstimate(0) for _ in range(actions)] for _ in range(states)]
+    
+    def constraint_current_state_probability(self):
+        sumProb = sum([x.value for x in self.probabilities[self.state]])
+        for a in len(self.probabilities[self.state]):
+            self.probabilities[self.state][a] = self.probabilities[self.state][a] / sumProb
     
     def select_action(self):
         randnum = random()
@@ -38,19 +49,54 @@ class Player:
             currentSum += currentProbs[p]
             if currentSum >= randnum:
                 return p
-    def observe_reward_and_move(self, reward, action, nextState):
+    
+    def observe_reward(self, reward, action, nextState):
         maxNext = max([x for x.value in self.QValueEstimates[nextState]])
         self.QValueEstimates[self.state][action].add_estimate(reward, maxNext, self.alpha, self.gamma)
         
-        self.state = nextState
-        
-    def update_probability(self):
+    def move(self, nextState):
+        if not nextState is None:
+            self.state = nextState
+    
+    #The third step in each algorithm    
+    def update_probability(self, action):
         raise NotImplementedError('You are supposed to implement this method')
+
+class PHCPlayer(Player):
+    def __init__(self, actions, states, initialstate = 0, alpha = 1.0, gamma = 0.0, delta):
+        super(PHCPlayer, self).__init__(actions, states, initialstate, alpha, gamma) #TODO: Nakijken of ik self aan init moet meegeven
+        self.delta = delta
+    
+    def update_probability(self, action):
+        mystate = self.state
+        maxQ = max([x.value for x in QValueEstimates[mystate]])
+        currentQ = QValueEstimates[mystate][action].value
         
+        if maxQ == currentQ:
+            toadd = self.delta
+        else:
+            toadd = -self.delta / (len(QValueEstimates[mystate]) - 1)
+        self.probabilities[mystate][action] = self.probabilities[mystate][action] + toadd
+        
+        self.constraint_current_state_probability()
+        
+
+class WolfPlayer(Player):
+    def __init__(self, actions, states, initialstate = 0, alpha = 1.0, gamma = 0.0, w_delta, l_delta):
+        super(WolfPlayer, self).__init__(actions, states, initialstate, alpha, gamma)
+        self.w_delta = w_delta
+        self.l_delta = l_delta
+        self.C = [0] * states
+    
+    def update_probability(self, action):
+        pass
+
+#----------------------------------------------------------------------
+
+# Classes for different types of games
                 
 class Game:
     def __init__(self, nstates, nactions):
-        self.state = initialstate
         self.nstates = nstates
         self.nactions = nactions
         
@@ -69,10 +115,33 @@ class Game:
         action_player2 = player2.select_action()
         
         rewards = (action_player1, player1.state, action_player2, player2.state)
-        player1.observe_reward_and_move(rewards[0], action_player1, self.NextStates[action_player1][player1.state])
-        player2.observe_reward_and_move(rewards[1], action_player2, self.NextStates[action_player2][player2.state])
+        player1.observe_reward(rewards[0], action_player1, self.NextStates[player1.state][action_player1])
+        player2.observe_reward(rewards[1], action_player2, self.NextStates[player2.state][action_player2])
         
+        player1.update_probability()
+        player2.update_probability()
         
-    #Methods to implement. Supposed to return a 2-tuple    
-    def get_rewards(action1, state1, action2, state2):
+        player1.move(self.NextStates[player1.state][action_player1])
+        player2.move(self.NextStates[player2.state][action_player2])
+        
+    #Methods to implement. Supposed to return a 2-tuple
+    #One for each player corresponding to an element   
+    def get_rewards(self, action1, state1, action2, state2):
         raise NotImplementedError('You must implement this method')
+        
+class MatrixGame(Game):
+    def __init__(self, nstates, nactions):
+        super(MatrixGame, self).__init__(nstates, nactions)
+        self.QMatrix = [[QValue(0, 1) for _ in range(naction)] for _ in range(nstates)]
+        
+    def set_qvalue(self, state, action, mean, stdDev):
+        self.QMatrix[state][action] = QValue(mean, stdDev)
+    
+    def get_rewards(self, action1, state1, action2, state2):
+        rew1 = QMatrix[state1][action1].get_reward()
+        rew2 = QMatrix[state2][action2].get_reward()
+        
+        # Return the tuple
+        return (rew1, rew2)
+
+#-----------------------------------------------------------------------
