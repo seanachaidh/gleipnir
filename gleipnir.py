@@ -1,6 +1,5 @@
 from random import random, gauss
 
-
 # Classes for actual QValues as well as estimated ones
 class QValueEstimate:
     #Look if this is right considering identation
@@ -144,4 +143,50 @@ class MatrixGame(Game):
         # Return the tuple
         return (rew1, rew2)
 
+# TODO: FAILURE IMPLEMENTEREN
+class SoccerGame(Game):
+    
+    def state_to_coordinate(self,state):
+        x = state - 1 // self.rows
+        y = state - 1 % self.columns
+        
+        return (x + 1, y + 1)
+        
+    def calculate_manhattan(self, statex, statey):
+        location_x = state_to_coordinate(statex)
+        location_y = state_to_coordinate(statey)
+        
+        return abs(location_x[0] - location_y[0]) + abs(location_x[1] - location_y[1])
+    
+    # Initball is a state
+    def __init__(self, states, actions, rows, columns, initball, player1Goal, player2Goal):
+        super(SoccerGame, self).__init__(states,actions)
+        self.rows = rows
+        self.columns = columns
+        self.ball_location = initball
+        self.player1_goal = player1Goal
+        self.player2_goal = player2Goal
+    
+    def get_rewards(self, action1, state1, action2, state2):
+        player1NextState = self.NextStates[state1][action1]
+        player2NextState = self.NextStates[state2][action2]
+        
+        player1HasBall = (state1 == self.ball_location)
+        player2HasBall = (state2 == self.ball_location)
+        
+        if player1HasBall:
+            rew1 = self.calculate_manhattan(self.player2_goal, player1NextState)
+            #move the ball with the player
+            self.ball_location = player1NextState
+        else:
+            rew1 = self.calculate_manhattan(self.ball_location, player1NextState)
+        
+        if player2HasBall:
+            rew2 = self.calculate_manhattan(self.player1_goal, player2NextState)
+            #Move the ball with the player
+            self.ball_location = player2NextState
+        else:
+            rew2 = self.calculate_manhattan(self.ball_location, player2NextState)
+        
+        return (rew1, rew2)
 #-----------------------------------------------------------------------
