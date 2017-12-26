@@ -1,4 +1,4 @@
-from random import random, gauss
+from random import random, gauss, randint
 
 # Classes for actual QValues as well as estimated ones
 class QValueEstimate:
@@ -10,9 +10,6 @@ class QValueEstimate:
     def add_estimate(self, value, maxval = 0, alpha, gamma):
         self.value = (1 - self.alpha) * self.value + alpha * (value + gamma * maxval)
 
-
-
-
 class QValue:
     def __init__(self, mean, stdDev = None):
         self.mean = mean
@@ -22,7 +19,24 @@ class QValue:
             return self.mean
         else:
             return gauss(self.mean, self.stdDev)
+#--------------------------------------------------
 
+#Classes for managing states
+#TODO: Default waardes implementeren rekening houdend met probabilities
+class StateManager:
+    def __init__(self, nactions):
+        self.nactions = nactions
+        self.states = dict()
+    def get_state(self, state):
+        if state in self.states:
+            return self.states[state]
+        else:
+            self.states[state] = [QValueEstimate(0) for _ in range(nactions)]
+            return self.states[state]
+            
+    # Operator overloading of []
+    def __getitem__(self, key):
+        return self.get_state(key)
 #------------------------------------------------------------
 
 #Classes for different types of players
@@ -31,9 +45,10 @@ class Player:
         self.gamma = gamma
         self.alpha = alpha
         self.state = initialstate
+        
+        self.QValueEstimates = StateManager(actions)
 
         self.probabilities = [[1/actions for _ in range(actions)] for _ in range(states)]
-        self.QValueEstimates = [[QValueEstimate(0) for _ in range(actions)] for _ in range(states)]
 
     def constraint_current_state_probability(self):
         sumProb = sum([x.value for x in self.probabilities[self.state]])
@@ -140,7 +155,11 @@ class Game:
 
         #None here means the agent remains in the same state. Good for single state games
         self.NextStates = [[None for _ in range(actions)] for _ in range(states)]
-
+    
+    # Supposed to return a tuple. Each element represents the next state of the player
+    def next_states(self, player1_state, player1_action, player2_state, player2_action):
+        raise NotImplementedError('You must implement this method')
+    
     def add_players(self, player1, player2):
          self.player1 = player1
          self.player2 = player2
@@ -154,21 +173,23 @@ class Game:
 
         action_player1 = player1.select_action()
         action_player2 = player2.select_action()
-
+        
+        p1_next, p2_next = self.next_states(player1.state, action_player1, player2.state, action_player2)
+        
         #The wile loop is used for the Gridworld game. In case the future states are the same, a different action should be chosen.
-        while is_same_future_state(self.NextStates[player1.state][action_player1], self.NextStates[player2.state][action_player2]):
+        while is_same_future_state(p1_next, p2_next):
             action_player1 = player1.select_action()
             action_player2 = player2.select_action()
 
         rewards = (action_player1, player1.state, action_player2, player2.state)
-        player1.observe_reward(rewards[0], action_player1, self.NextStates[player1.state][action_player1])
-        player2.observe_reward(rewards[1], action_player2, self.NextStates[player2.state][action_player2])
+        player1.observe_reward(rewards[0], action_player1, p1_next)
+        player2.observe_reward(rewards[1], action_player2, p2_next)
 
         player1.update_probability()
         player2.update_probability()
 
-        player1.move(self.NextStates[player1.state][action_player1])
-        player2.move(self.NextStates[player2.state][action_player2])
+        player1.move(p1_next)
+        player2.move(p2_next)
 
     #Methods to implement. Supposed to return a 2-tuple
     #One for each player corresponding to an element
@@ -179,6 +200,9 @@ class MatrixGame(Game):
     def __init__(self, nstates, nactions):
         super(MatrixGame, self).__init__(nstates, nactions)
         self.QMatrix = [[QValue(0, 1) for _ in range(naction)] for _ in range(nstates)]
+    
+    def next_states(self, player1_state, player1_action, player2_state, player2_action):
+        return (None, None)
 
     #There is no difference in states, we can just skip the while loop.
     def is_same_future_state(state_player_1, state_player_2):
@@ -204,6 +228,29 @@ class GridworldGame(Game):
 
     def set_qvalue(self, state, action, mean, stdDev):
         self.QMatrix[state][action] = QValue(mean, stdDev)
+    
+    def calculate_move(self, state, action):
+        if action == 0:
+            if state < self.nactons:
+                retval = state # If you cannot move up anymore, stay there
+            else:
+                retval = state - (self.nactions - 1)
+        else if action == 1:
+            if (player1_state - (self.nactions - 1)) % self.nactions == 0:
+                retval = state
+            else:
+                retval = state + 1
+        else if action == 2:
+            if state >= (self.nstates - self.nactions):
+                retval = state
+            else:
+                retval = state + self.nactions
+        return retval
+
+    def next_states(self, player1_state, player1_action, player2_state, player2_action):
+        s1 = self.calculate_move(player1_state, player1_action)
+        s2 = self.calculate_move(player2_state, player2_action)
+        return (s1, s2)
 
     def is_same_future_state(state_player_1, state_player_2):
         if (state_player_1 == state_player_2):
@@ -219,6 +266,7 @@ class GridworldGame(Game):
         return (rew1, rew2)
 
 # TODO: FAILURE IMPLEMENTEREN
+# State Format: ownstate|otherstate|stateb
 class SoccerGame(Game):
     
     def state_to_coordinate(self,state):
@@ -227,6 +275,58 @@ class SoccerGame(Game):
         
         return (x + 1, y + 1)
         
+    # CODE DUPLICATION!!!!!    
+    def calculate_move(self, state, action):
+        if action == 0:
+            if state < self.nactons:
+                retval = state # If you cannot move up anymore, stay there
+            else:
+                retval = state - (self.nactions - 1)
+        else if action == 1:
+            if (player1_state - (self.nactions - 1)) % self.nactions == 0:
+                retval = state
+            else:
+                retval = state + 1
+        else if action == 2:
+            if state >= (self.nstates - self.nactions):
+                retval = state
+            else:
+                retval = state + self.nactions
+        return retval
+        
+    def next_states(self, player1_state, player1_action, player2_state, player2_action):
+        currentP1State = int(player1_state.split('|')[0])
+        currentP2State = int(player2_state.split('|')[0])
+        
+        # The ball should be for both players in the same spot
+        # so it does not matter from which player we take it$
+        currentBallState = player1_sate.split('|')[2]
+        
+        movedP1 = self.calculate_move(currentP1State)
+        movedP2 = self.calculate_move(currentP2State)
+        
+        # Move the ball
+        if currentP1State == currentBallState:
+            movedBall = movedP1
+        else if currentP2State == currentBallState:
+            movedBall = movedP2
+        else:
+            movedBall = currentBallState
+        
+        # If player1 player2 and the ball are on the same location
+        # One of them gets the ball
+        if movedBall == movedP1 == movedP2:
+            # The losing player moves back
+            choice = random()
+            if choice < 0.5:
+                movedP1 = currentP1State
+            else:
+                movedP2 = currentP2State
+        finalP1 = str(movedP1) + '|' + str(movedP2) + '|' + str(movedBall)
+        finalP2 = str(movedP2) + '|' + str(movedP1) + '|' + str(movedBall)
+        
+        return (finalP1, finalP2)
+    
     def calculate_manhattan(self, statex, statey):
         location_x = state_to_coordinate(statex)
         location_y = state_to_coordinate(statey)
