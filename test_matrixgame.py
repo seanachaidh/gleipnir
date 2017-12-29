@@ -18,8 +18,8 @@ game.set_qvalue(1,2,-1,None)
 game.set_qvalue(0,2,1,None)
 game.set_qvalue(2,0,-1,None)
 
-game.add_players(gleipnir.PHCPlayer(3, 1, 0, 1, 0.0, 0.8), gleipnir.PHCPlayer(3, 1, 0, 1, 0.0, 0.8))
-game.play_n_games(1000)
+game.add_players(gleipnir.PHCPlayer(3, 1, 0, 0.01, 0.0, 0.01), gleipnir.PHCPlayer(3, 1, 0, 1, 0.0, 0.01))
+game.play_n_games(10000)
 
 lineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'matrixgamephc1.png', True)
 lineplot.append_values('action1', game.player1_stats[0], True)
@@ -48,8 +48,8 @@ wolfgame.set_qvalue(1,2,-1,None)
 wolfgame.set_qvalue(0,2,1,None)
 wolfgame.set_qvalue(2,0,-1,None)
 
-wolfgame.add_players(gleipnir.WolfPlayer(3, 1, 0, 0.0, 0.1, 0.2, 0.4), gleipnir.WolfPlayer(3, 1, 0, 0.0, 0.0, 0.2, 0.4))
-wolfgame.play_n_games(1000)
+wolfgame.add_players(gleipnir.WolfPlayer(3, 1, 0, 0.01, 0.0, 0.2, 0.7), gleipnir.WolfPlayer(3, 1, 0, 1, 0.0, 0.2, 0.7))
+wolfgame.play_n_games(10000)
 
 wolflineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'wolf_matrixgamephc1.png', True)
 wolflineplot.value_list.append(plotting.PlotElement('action1', wolfgame.player1_stats[0]))
