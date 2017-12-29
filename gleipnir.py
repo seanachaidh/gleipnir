@@ -1,4 +1,5 @@
 from random import random, gauss, randint
+from operator import itemgetter
 
 # Classes for actual QValues as well as estimated ones
 class QValueEstimate:
@@ -9,6 +10,9 @@ class QValueEstimate:
 	#Look if this is right considering identation
 	def add_estimate(self, value, maxval = 0, alpha = 1.0, gamma = 0.0):
 		self.value = (1 - alpha) * self.value + alpha * (value + gamma * maxval)
+		
+	def __repr__(self):
+		return str(self.value)
 
 class QValue:
 	def __init__(self, mean, stdDev = None):
@@ -65,20 +69,20 @@ class Player:
 			return x
 	
 	def constraint_current_state_probability(self):
-		sumProb = sum([self.__lower_limit(x, 0) for x in self.probabilities[self.state]])
+		sumProb = sum([self.__lower_limit(x, 1/10) for x in self.probabilities[self.state]])
 		for a in range(len(self.probabilities[self.state])):
-			self.probabilities[self.state][a] = self.__lower_limit(self.probabilities[self.state][a], 0) / sumProb
+			self.probabilities[self.state][a] = self.__lower_limit(self.probabilities[self.state][a], 1/10) / sumProb
 
 	def select_action(self):
 		randnum = random()
-		currentProbs = sorted(self.probabilities[self.state])
+		elementPr = [(a, self.probabilities[self.state][a]) for a in range(len(self.probabilities[self.state]))]
+		currentProbs = sorted(elementPr, key=itemgetter(1))
 		currentSum = 0
-		currentInd = 0
 
 		for p in range(len(currentProbs)):
-			currentSum += currentProbs[p]
+			currentSum += currentProbs[p][1]
 			if currentSum >= randnum:
-				return p
+				return currentProbs[p][0]
 
 	def observe_reward(self, reward, action, nextState):
 		maxNext = max([x.value for x in self.QValueEstimates[nextState]])
@@ -168,10 +172,12 @@ class WolfPlayer(Player):
 # Classes for different types of games
 
 class Game:
-	def __init__(self, nstates, nactions):
+	def __init__(self, nstates, nactions, randomize = False):
 		self.nstates = nstates
 		self.nactions = nactions
-
+		
+		self.randomize = randomize
+		
 		#None here means the agent remains in the same state. Good for single state games
 		self.NextStates = [[None for _ in range(nactions)] for _ in range(nstates)]
 	
@@ -200,7 +206,10 @@ class Game:
 		self.record_statistics()
 
 		action_player1 = self.player1.select_action()
-		action_player2 = self.player2.select_action()
+		if self.randomize:
+			action_player2 = randint(0, self.nactions-1)
+		else:
+			action_player2 = self.player2.select_action()
 		
 		p1_next, p2_next = self.next_states(self.player1.state, action_player1, self.player2.state, action_player2)
 		
@@ -218,6 +227,9 @@ class Game:
 
 		self.player1.move(p1_next)
 		self.player2.move(p2_next)
+		
+		print(self.player1.QValueEstimates[self.player1.state])
+		
 
 	#Methods to implement. Supposed to return a 2-tuple
 	#One for each player corresponding to an element
@@ -229,8 +241,8 @@ class Game:
 			self.play_game()
 
 class MatrixGame(Game):
-	def __init__(self, nstates, nactions):
-		super(MatrixGame, self).__init__(nstates, nactions)
+	def __init__(self, nstates, nactions, randomize = False):
+		super(MatrixGame, self).__init__(nstates, nactions, randomize)
 		self.QMatrix = [[QValue(0, 1) for _ in range(nactions)] for _ in range(nactions)]
 		
 		self.player1_stats = [list() for _ in range(nactions)]
@@ -262,7 +274,7 @@ class MatrixGame(Game):
 
 class GridworldGame(Game):
 	def __init__(self, nstates, nactions, goal):
-		super(GridworldGame, self).__init__(nstates, nactions)
+		super(GridworldGame, self).__init__(nstates, nactions, False)
 		self.goal = goal
 	
 	def state_to_coordinate(self,state):
@@ -401,7 +413,7 @@ class SoccerGame(Game):
 	
 	# Initball is a state
 	def __init__(self, states, actions, rows, columns, initball, player1Goal, player2Goal):
-		super(SoccerGame, self).__init__(states,actions)
+		super(SoccerGame, self).__init__(states,actions, False)
 		self.rows = rows
 		self.columns = columns
 		self.ball_location = initball

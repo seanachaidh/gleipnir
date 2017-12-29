@@ -7,7 +7,7 @@ def check_correct(action1, action2, action3):
 		if not (action1[i] + action2[i] + action3[i]) == 1:
 			print("Incorrect %f", action1[i] + action2[i] + action3[i])
 
-game = gleipnir.MatrixGame(1, 3)
+game = gleipnir.MatrixGame(1, 3, randomize = True)
 game.set_qvalue(0,0,0,None)
 game.set_qvalue(1,1,0,None)
 game.set_qvalue(2,2,0,None)
@@ -18,7 +18,7 @@ game.set_qvalue(1,2,-1,None)
 game.set_qvalue(0,2,1,None)
 game.set_qvalue(2,0,-1,None)
 
-game.add_players(gleipnir.PHCPlayer(3, 1, 0, 0.2, 0.1, 0.2), gleipnir.PHCPlayer(3, 1, 0, 0.2, 0.1, 0.2))
+game.add_players(gleipnir.PHCPlayer(3, 1, 0, 1, 0.0, 0.8), gleipnir.PHCPlayer(3, 1, 0, 1, 0.0, 0.8))
 game.play_n_games(1000)
 
 lineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'matrixgamephc1.png', True)
@@ -37,7 +37,7 @@ lineplot2.plot()
 print(game.player2_stats[0])
 
 
-wolfgame = gleipnir.MatrixGame(1, 3)
+wolfgame = gleipnir.MatrixGame(1, 3, randomize = True)
 wolfgame.set_qvalue(0,0,0,None)
 wolfgame.set_qvalue(1,1,0,None)
 wolfgame.set_qvalue(2,2,0,None)
@@ -48,7 +48,7 @@ wolfgame.set_qvalue(1,2,-1,None)
 wolfgame.set_qvalue(0,2,1,None)
 wolfgame.set_qvalue(2,0,-1,None)
 
-wolfgame.add_players(gleipnir.WolfPlayer(3, 1, 0, 0.2, 0.0, 0.2, 0.4), gleipnir.WolfPlayer(3, 1, 0, 0.2, 0.0, 0.2, 0.4))
+wolfgame.add_players(gleipnir.WolfPlayer(3, 1, 0, 0.0, 0.1, 0.2, 0.4), gleipnir.WolfPlayer(3, 1, 0, 0.0, 0.0, 0.2, 0.4))
 wolfgame.play_n_games(1000)
 
 wolflineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'wolf_matrixgamephc1.png', True)
