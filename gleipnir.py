@@ -57,15 +57,21 @@ class Player:
 
 	def record_statistics(self):
 		pass
-
+	
+	def __lower_limit(self, x, low):
+		if x < low:
+			return low
+		else:
+			return x
+	
 	def constraint_current_state_probability(self):
-		sumProb = sum([abs(x) for x in self.probabilities[self.state]])
+		sumProb = sum([self.__lower_limit(x, 0) for x in self.probabilities[self.state]])
 		for a in range(len(self.probabilities[self.state])):
-			self.probabilities[self.state][a] = abs(self.probabilities[self.state][a]) / sumProb
+			self.probabilities[self.state][a] = self.__lower_limit(self.probabilities[self.state][a], 0) / sumProb
 
 	def select_action(self):
 		randnum = random()
-		currentProbs = self.probabilities[self.state]
+		currentProbs = sorted(self.probabilities[self.state])
 		currentSum = 0
 		currentInd = 0
 
@@ -132,6 +138,7 @@ class WolfPlayer(Player):
 			return False
 
 	def update_probability(self, action):
+		print("wolfplayer selected action:",action)
 		mystate = self.state
 		maxQ = max([x.value for x in self.QValueEstimates[mystate]])
 		currentQ = self.QValueEstimates[mystate][action].value
