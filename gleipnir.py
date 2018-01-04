@@ -307,6 +307,7 @@ class GridworldGame(Game):
         self.goal = goal
         self.columns = columns
         self.rows = rows
+        self.walls = [[False] * 4 for _ in range(nstates)]
     
     def state_to_coordinate(self,state):
         x = state - 1 // self.rows
@@ -314,6 +315,9 @@ class GridworldGame(Game):
         
         return (x + 1, y + 1)
         
+    
+    def wall_off_state(self, state, action):
+        self.walls[state][action] = True
     
     # TODO: ENORMOUS CODE DUPLICATION!!!
     def calculate_manhattan(self, statex, statey):
@@ -324,21 +328,21 @@ class GridworldGame(Game):
     
     def calculate_move(self, state, action):
         if action == 0:
-            if state < self.columns:
+            if state < self.columns or self.walls[state][0]:
                 retval = state # If you cannot move up anymore, stay there
             else:
                 retval = state - self.columns
-        elif action == 1:
+        elif action == 1 or self.walls[state][1]:
             if (state - (self.columns - 1)) % self.columns == 0:
                 retval = state
             else:
                 retval = state + 1
-        elif action == 2:
+        elif action == 2 or self.walls[state][2]:
             if state >= (self.nstates - self.columns):
                 retval = state
             else:
                 retval = state + self.columns
-        elif action == 3:
+        elif action == 3 or self.walls[state][3]:
             if (state % self.columns) == 0:
                 retval = state
             else:
