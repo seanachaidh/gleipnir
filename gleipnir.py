@@ -36,6 +36,7 @@ class StateManager:
         if state in self.states:
             return self.states[state]
         else:
+            print("initializing state")
             if self.statesAreLists:
                 self.states[state] = [self.initfunc(self.nactions) for a in range(self.nactions)]
             else:
@@ -71,7 +72,10 @@ class Player:
     def constraint_current_state_probability(self):
         sumProb = sum([self.__lower_limit(x,0) for x in self.probabilities[self.state]])
         for a in range(len(self.probabilities[self.state])):
-            self.probabilities[self.state][a] = self.__lower_limit(self.probabilities[self.state][a],0) / sumProb
+            if sumProb == 0:
+                self.probabilities[self.state][a] = 0
+            else:
+                self.probabilities[self.state][a] = self.__lower_limit(self.probabilities[self.state][a],0) / sumProb
 
     def select_action(self):
         randnum = random()
@@ -183,7 +187,8 @@ class WolfPlayer(Player):
             toadd = curdelt
         else:
             toadd = -curdelt / (len(self.QValueEstimates[mystate]) - 1)
-        self.probabilities[mystate][action] = self.probabilities[mystate][action] + (toadd * self.C[mystate])
+        print("adding:", toadd*self.C[mystate])
+        self.probabilities[mystate][action] = self.probabilities[mystate][action] + (toadd*(1/self.C[mystate]))
 
         self.constraint_current_state_probability()
 
