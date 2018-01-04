@@ -13,7 +13,7 @@ class Plot:
 		self.xlabel = xlabel
 		self.ylabel = ylabel
 		self.savefile = savefile
-	
+		
 	def append_values(self, title, values, pre_proccess = False):
 		if pre_proccess:
 			newvals = list(map(lambda x: round(x, 5), values))
@@ -46,3 +46,4 @@ class LinePlot(Plot):
 			fig.savefig(self.savefile)
 		else:
 			plt.show()
+

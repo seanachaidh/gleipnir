@@ -240,8 +240,12 @@ class Game:
         
         #The wile loop is used for the Gridworld game. In case the future states are the same, a different action should be chosen.
         while self.is_same_future_state(p1_next, p2_next):
+            print("same")
+            #~ print('current state player1:', self.player1.state)
+            #~ print('current state player2:', self.player2.state)
             action_player1 = self.player1.select_action()
             action_player2 = self.player2.select_action()
+            p1_next, p2_next = self.next_states(self.player1.state, action_player1, self.player2.state, action_player2)
 
         rewards = self.get_rewards(action_player1, self.player1.state, action_player2, self.player2.state)
         self.player1.observe_reward(rewards[0], action_player1, p1_next)
@@ -252,6 +256,9 @@ class Game:
 
         self.player1.move(p1_next)
         self.player2.move(p2_next)
+        
+        print('current state player1:', self.player1.state)
+        print('current state player2:', self.player2.state)
         
     #Methods to implement. Supposed to return a 2-tuple
     #One for each player corresponding to an element
@@ -295,9 +302,11 @@ class MatrixGame(Game):
 
 
 class GridworldGame(Game):
-    def __init__(self, nstates, nactions, goal):
-        super(GridworldGame, self).__init__(nstates, nactions, False)
+    def __init__(self, nstates, rows, columns, goal):
+        super(GridworldGame, self).__init__(nstates, 4, False)
         self.goal = goal
+        self.columns = columns
+        self.rows = rows
     
     def state_to_coordinate(self,state):
         x = state - 1 // self.rows
@@ -308,36 +317,55 @@ class GridworldGame(Game):
     
     # TODO: ENORMOUS CODE DUPLICATION!!!
     def calculate_manhattan(self, statex, statey):
-        location_x = state_to_coordinate(statex)
-        location_y = state_to_coordinate(statey)
+        location_x = self.state_to_coordinate(statex)
+        location_y = self.state_to_coordinate(statey)
         
         return abs(location_x[0] - location_y[0]) + abs(location_x[1] - location_y[1])
     
     def calculate_move(self, state, action):
         if action == 0:
-            if state < self.nactons:
+            if state < self.columns:
                 retval = state # If you cannot move up anymore, stay there
             else:
-                retval = state - (self.nactions - 1)
+                retval = state - self.columns
         elif action == 1:
-            if (player1_state - (self.nactions - 1)) % self.nactions == 0:
+            if (state - (self.columns - 1)) % self.columns == 0:
                 retval = state
             else:
                 retval = state + 1
         elif action == 2:
-            if state >= (self.nstates - self.nactions):
+            if state >= (self.nstates - self.columns):
                 retval = state
             else:
-                retval = state + self.nactions
+                retval = state + self.columns
+        elif action == 3:
+            if (state % self.columns) == 0:
+                retval = state
+            else:
+                retval = state - 1
         return retval
 
     def next_states(self, player1_state, player1_action, player2_state, player2_action):
-        s1 = self.calculate_move(player1_state, player1_action)
-        s2 = self.calculate_move(player2_state, player2_action)
+        # Lock the player in the "none" state if it is there
+        # Put the player in the "none" state if he reached the goal
+        if player1_state == -1:
+            s1 = -1
+        else:
+            s1 = self.calculate_move(player1_state, player1_action)
+            if s1 == self.goal:
+                s1 = -1
+        if player2_state == -1:
+            s2 = -1
+        else:
+            s2 = self.calculate_move(player2_state, player2_action)
+            if s2 == self.goal:
+                s2 = -1
         return (s1, s2)
 
     def is_same_future_state(self, state_player_1, state_player_2):
-        if (state_player_1 == state_player_2):
+        if (state_player_1 == -1) and (state_player_2 == -1):
+            return False
+        elif (state_player_1 == state_player_2):
             return True
         else:
             return False
@@ -349,11 +377,11 @@ class GridworldGame(Game):
         manhattan_new = self.calculate_manhattan(new_state, self.goal)
         
         if manhattan_new < manhattan_old:
-            return 1
+            return 3
         elif manhattan_new == manhattan_old:
-            return 0
-        else:
             return -1
+        else:
+            return -2
     
     def get_rewards(self, action1, state1, action2, state2):
         rew1 = self.calculate_reward(state1, action1)
@@ -361,8 +389,16 @@ class GridworldGame(Game):
  
         # Return the tuple
         return (rew1, rew2)
+        
+    def play_till_the_end(self):
+        player1_steps = []
+        player2_steps = []
+        while not ((self.player1.state == -1) and (self.player2.state == -1)):
+            self.play_game()
+            player1_steps.append(self.player1.state)
+            player2_steps.append(self.player2.state)
+        return (player1_steps, player2_steps)
 
-# TODO: FAILURE IMPLEMENTEREN
 # State Format: ownstate|otherstate|stateb
 class SoccerGame(Game):
     
@@ -378,20 +414,25 @@ class SoccerGame(Game):
     # CODE DUPLICATION!!!!!    
     def calculate_move(self, state, action):
         if action == 0:
-            if state < self.nactons:
+            if state < self.columns:
                 retval = state # If you cannot move up anymore, stay there
             else:
-                retval = state - (self.nactions - 1)
+                retval = state - self.columns
         elif action == 1:
-            if (player1_state - (self.nactions - 1)) % self.nactions == 0:
+            if (player1_state - (self.columns - 1)) % self.columns == 0:
                 retval = state
             else:
                 retval = state + 1
         elif action == 2:
-            if state >= (self.nstates - self.nactions):
+            if state >= (self.nstates - self.columns):
                 retval = state
             else:
-                retval = state + self.nactions
+                retval = state + self.columns
+        elif action == 3:
+            if (state % self.columns) == 0:
+                retval = state
+            else:
+                retval = state - 1
         return retval
         
     def next_states(self, player1_state, player1_action, player2_state, player2_action):
