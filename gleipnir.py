@@ -36,7 +36,7 @@ class StateManager:
         if state in self.states:
             return self.states[state]
         else:
-            print("initializing state")
+            #~ print("initializing state")
             if self.statesAreLists:
                 self.states[state] = [self.initfunc(self.nactions) for a in range(self.nactions)]
             else:
@@ -56,6 +56,8 @@ class Player:
         self.gamma = gamma
         self.alpha = alpha
         self.state = initialstate
+        self.steps = 0
+        self.actions = actions
         
         self.QValueEstimates = StateManager(actions, lambda x: QValueEstimate(0))
         self.probabilities = StateManager(actions, lambda x: 1/x)
@@ -63,19 +65,24 @@ class Player:
     def record_statistics(self):
         pass
     
-    def __lower_limit(self, x, low):
+    def __lower_upper_limit(self, x, low, high):
         if x < low:
             return low
+        elif x > high:
+            return high
         else:
             return x
     
-    def constraint_current_state_probability(self):
-        sumProb = sum([self.__lower_limit(x,0) for x in self.probabilities[self.state]])
-        for a in range(len(self.probabilities[self.state])):
-            if sumProb == 0:
-                self.probabilities[self.state][a] = 0
-            else:
-                self.probabilities[self.state][a] = self.__lower_limit(self.probabilities[self.state][a],0) / sumProb
+    def constraint_current_state_probability(self, added_value, chosen_action):
+        oldprob = self.probabilities[self.state][chosen_action]
+        other_actions = [x for x in range(self.actions) if x != chosen_action]
+        newprob = self.__lower_upper_limit(oldprob + added_value, 0, 1)
+        diffprob = oldprob - newprob
+        toadd_to_others = diffprob / len(other_actions)
+        self.probabilities[self.state][chosen_action] = newprob
+        
+        for a in other_actions:
+            self.probabilities[self.state][a] = self.__lower_upper_limit(self.probabilities[self.state][a] + toadd_to_others , 0, 1)
 
     def select_action(self):
         randnum = random()
@@ -83,6 +90,7 @@ class Player:
         currentProbs = sorted(elementPr, key=itemgetter(1))
         currentSum = 0
         print("probabilities:", elementPr)
+        print("QValues:", [x.value for x in self.QValueEstimates[self.state]])
         for p in range(len(currentProbs)):
             currentSum += currentProbs[p][1]
             if currentSum >= randnum:
@@ -91,7 +99,7 @@ class Player:
 
     def observe_reward(self, reward, action, nextState):
         maxNext = max([x.value for x in self.QValueEstimates[nextState]])
-        self.QValueEstimates[self.state][action].add_estimate(reward, maxNext, self.alpha, self.gamma)
+        self.QValueEstimates[self.state][action].add_estimate(reward, maxNext, self.alpha, pow(self.gamma, self.steps))
 
     def move(self, nextState):
         if not nextState is None:
@@ -117,7 +125,7 @@ class PHCPlayer(Player):
             toadd = -self.delta / (len(self.QValueEstimates[mystate]) - 1)
         self.probabilities[mystate][action] = self.probabilities[mystate][action] + toadd
 
-        self.constraint_current_state_probability()
+        self.constraint_current_state_probability(toadd, action)
 
 
 class WolfPlayer(Player):
@@ -151,16 +159,28 @@ class WolfPlayer(Player):
         print("sum policy:", tocheck)
         print("Average policy:", self.average_policy[self.state])
 
-    def __lower_limit(self, x, low):
+    def __lower_upper_limit(self, x, low, high):
         if x < low:
             return low
+        elif x > high:
+            return  high
         else:
             return x
         
-    def __constraint_average_policy(self):
-        sumprob = sum(self.__lower_limit(self.average_policy[self.state][a], 0) for a in range(len(self.average_policy[self.state])))
-        for a in range(len(self.average_policy[self.state])):
-            self.average_policy[self.state][a] = self.__lower_limit(self.average_policy[self.state][a],0)/sumprob
+    def __constraint_average_policy(self, added_value, chosen_action):
+        #~ sumprob = sum(self.__lower_limit(self.average_policy[self.state][a], 0) for a in range(len(self.average_policy[self.state])))
+        #~ for a in range(len(self.average_policy[self.state])):
+            #~ self.average_policy[self.state][a] = self.__lower_limit(self.average_policy[self.state][a],0)/sumprob
+
+        oldprob = self.average_policy[self.state][chosen_action]
+        other_actions = [x for x in range(self.actions) if x != chosen_action]
+        newprob = self.__lower_upper_limit(oldprob + added_value, 0, 1)
+        diffprob = oldprob-newprob
+        toadd_to_others = diffprob / len(other_actions)
+        self.average_policy[self.state][chosen_action] = newprob
+        
+        for a in other_actions:
+            self.average_policy[self.state][a] = self.average_policy[self.state][a] + toadd_to_others
     
     def update_probability(self, action):
         mystate = self.state
@@ -171,9 +191,9 @@ class WolfPlayer(Player):
         
         self.C[mystate] = tmpvar + 1
 
-        for action in range(len(self.average_policy[mystate])):
-            self.average_policy[mystate][action] = self.average_policy[mystate][action] + ((1/self.C[mystate])*(self.probabilities[mystate][action] - self.average_policy[mystate][action]))
-        self.__constraint_average_policy()
+        for a in range(len(self.average_policy[mystate])):
+            #~ self.average_policy[mystate][a] = self.average_policy[mystate][a] + ((1/self.C[mystate])*(self.probabilities[mystate][a] - self.average_policy[mystate][a]))
+            self.__constraint_average_policy(((1/self.C[mystate])*(self.probabilities[mystate][a] - self.average_policy[mystate][a])), a)
         #self.__check_average_policy(mystate)
 
         if(self.calculate_win(mystate) == True):
@@ -187,10 +207,10 @@ class WolfPlayer(Player):
             toadd = curdelt
         else:
             toadd = -curdelt / (len(self.QValueEstimates[mystate]) - 1)
-        print("adding:", toadd*self.C[mystate])
-        self.probabilities[mystate][action] = self.probabilities[mystate][action] + (toadd*(1/self.C[mystate]))
-
-        self.constraint_current_state_probability()
+        print("adding:", toadd)
+        #~ self.probabilities[mystate][action] = self.probabilities[mystate][action] + (toadd*(1/self.C[mystate]))
+        #~ self.probabilities[mystate][action] = self.probabilities[mystate][action] + toadd
+        self.constraint_current_state_probability(toadd, action)
 
 #----------------------------------------------------------------------
 
@@ -257,6 +277,9 @@ class Game:
         self.player1.move(p1_next)
         self.player2.move(p2_next)
         
+        self.player1.steps+= 1
+        self.player2.steps+= 1
+        
         print('current state player1:', self.player1.state)
         print('current state player2:', self.player2.state)
         
@@ -310,8 +333,8 @@ class GridworldGame(Game):
         self.walls = [[False] * 4 for _ in range(nstates)]
     
     def state_to_coordinate(self,state):
-        x = state - 1 // self.rows
-        y = state - 1 % self.columns
+        x = state // self.rows
+        y = state % self.columns
         
         return (x + 1, y + 1)
         
@@ -352,44 +375,69 @@ class GridworldGame(Game):
     def next_states(self, player1_state, player1_action, player2_state, player2_action):
         # Lock the player in the "none" state if it is there
         # Put the player in the "none" state if he reached the goal
-        if player1_state == -1:
-            s1 = -1
+        
+        tmp1 = int(player1_state.split('|')[0])
+        tmp2 = int(player1_state.split('|')[1])
+        m1 = self.calculate_move(tmp1, player1_action)
+        m2 = self.calculate_move(tmp2, player2_action)
+        
+        if m1 == m2:
+            s1 = tmp1
+            s2 = tmp2
         else:
-            s1 = self.calculate_move(player1_state, player1_action)
-            if s1 == self.goal:
+            if tmp1 == -1:
                 s1 = -1
-        if player2_state == -1:
-            s2 = -1
-        else:
-            s2 = self.calculate_move(player2_state, player2_action)
-            if s2 == self.goal:
+            else:
+                s1 = self.calculate_move(tmp1, player1_action)
+                if s1 == self.goal:
+                    s1 = -1
+            if tmp2 == -1:
                 s2 = -1
-        return (s1, s2)
+            else:
+                s2 = self.calculate_move(tmp2, player2_action)
+                if s2 == self.goal:
+                    s2 = -1
+        return (str(s1) + '|' + str(s2), str(s2) + '|' + str(s1))
 
     def is_same_future_state(self, state_player_1, state_player_2):
-        if (state_player_1 == -1) and (state_player_2 == -1):
+        s1 = int(state_player_1.split('|')[0])
+        s2 = int(state_player_1.split('|')[1])
+        
+        if (s1 == -1) and (s2 == -1):
             return False
-        elif (state_player_1 == state_player_2):
+        elif (s1 == s2):
             return True
         else:
             return False
 
 
-    def calculate_reward(self, state, action):
-        new_state = self.calculate_move(state, action)
+    def calculate_reward(self, state, new_state):
         manhattan_old = self.calculate_manhattan(state, self.goal)
         manhattan_new = self.calculate_manhattan(new_state, self.goal)
         
-        if manhattan_new < manhattan_old:
-            return 3
+        if new_state == -1:
+            return 100 #Extra duwtje in de rug
+        elif manhattan_new < manhattan_old:
+            return 1
         elif manhattan_new == manhattan_old:
             return -1
         else:
             return -2
+        #~ moved_state = self.calculate_move(state, action)
+        #~ if moved_state == self.goal:
+            #~ return 100
+        #~ else:
+            #~ return 0
     
     def get_rewards(self, action1, state1, action2, state2):
-        rew1 = self.calculate_reward(state1, action1)
-        rew2 = self.calculate_reward(state2, action2)
+        s1 = int(state1.split('|')[0])
+        s2 = int(state1.split('|')[1])
+        
+        nextstates = self.next_states(state1, action1, state2, action2)[0].split('|')
+        
+        
+        rew1 = self.calculate_reward(s1, int(nextstates[0]))
+        rew2 = self.calculate_reward(s2, int(nextstates[1]))
  
         # Return the tuple
         return (rew1, rew2)
@@ -397,10 +445,14 @@ class GridworldGame(Game):
     def play_till_the_end(self):
         player1_steps = []
         player2_steps = []
-        while not ((self.player1.state == -1) and (self.player2.state == -1)):
+        
+        while not (self.player1.state == '-1|-1'):
             self.play_game()
-            player1_steps.append(self.player1.state)
-            player2_steps.append(self.player2.state)
+            s1 = int(self.player1.state.split('|')[0])
+            s2 = int(self.player1.state.split('|')[1])
+            
+            player1_steps.append(s1)
+            player2_steps.append(s2)
         return (player1_steps, player2_steps)
 
 # State Format: ownstate|otherstate|stateb

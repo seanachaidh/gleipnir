@@ -48,7 +48,7 @@ wolfgame.set_qvalue(1,2,-1,None)
 wolfgame.set_qvalue(0,2,1,None)
 wolfgame.set_qvalue(2,0,-1,None)
 
-wolfgame.add_players(gleipnir.WolfPlayer(3, 1, 0, 0.01, 0.0, 0.035, 0.07), gleipnir.WolfPlayer(3, 1, 0, 1, 0.0, 0.35, 0.7))
+wolfgame.add_players(gleipnir.WolfPlayer(3, 1, 0, 0.01, 0.0, 0.035, 0.07), gleipnir.WolfPlayer(3, 1, 0, 1, 0.0, 0.035, 0.07))
 wolfgame.play_n_games(100000)
 
 wolflineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'wolf_matrixgamephc1.png', True)
