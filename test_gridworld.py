@@ -10,7 +10,7 @@ class TestGridWorldClass(unittest.TestCase):
         self.grid = gleipnir.GridworldGame(9, 3, 3, 1)
         #Greed does appearantly pay in this game
         #~ self.grid.add_players(gleipnir.PHCPlayer(4, 9, '6|8', alpha=1.0), gleipnir.PHCPlayer(4, 9, '8|6', alpha=1.0))
-        self.grid.add_players(gleipnir.WolfPlayer(4, 9, '6|8', 0.4, 0.9, 0.35, 0.7), gleipnir.WolfPlayer(4, 9, '8|6', 0.4, 0.9, 0.35, 0.7))
+        self.grid.add_players(gleipnir.WolfPlayer(4, 9, '6|8', 0.4, 0.9, 0.35, 0.7, True), gleipnir.WolfPlayer(4, 9, '8|6', 0.4, 0.9, 0.35, 0.7, True))
         self.grid.wall_off_state(6, 0)
         self.grid.wall_off_state(8, 0)
         self.grid.wall_off_state(3, 2)

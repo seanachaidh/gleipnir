@@ -129,11 +129,12 @@ class PHCPlayer(Player):
 
 
 class WolfPlayer(Player):
-    def __init__(self, actions, states, initialstate = 0, alpha = 1.0, gamma = 0.0, w_delta = 0.2, l_delta = 0.4):
+    def __init__(self, actions, states, initialstate = 0, alpha = 1.0, gamma = 0.0, w_delta = 0.2, l_delta = 0.4, use_C = False):
         super(WolfPlayer, self).__init__(actions, states, initialstate, alpha, gamma)
         self.w_delta = w_delta
         self.l_delta = l_delta
         self.C = StateManager(actions, lambda x: 0, False)
+        self.use_C = use_C
         
         #self.average_policy =  [[1/actions for _ in range(actions)] for _ in range(states)]
         self.average_policy = StateManager(actions, lambda x: 1/x)
@@ -180,7 +181,7 @@ class WolfPlayer(Player):
         self.average_policy[self.state][chosen_action] = newprob
         
         for a in other_actions:
-            self.average_policy[self.state][a] = self.average_policy[self.state][a] + toadd_to_others
+            self.average_policy[self.state][a] = self.__lower_upper_limit(self.average_policy[self.state][a] + toadd_to_others, 0, 1)
     
     def update_probability(self, action):
         mystate = self.state
@@ -210,7 +211,10 @@ class WolfPlayer(Player):
         print("adding:", toadd)
         #~ self.probabilities[mystate][action] = self.probabilities[mystate][action] + (toadd*(1/self.C[mystate]))
         #~ self.probabilities[mystate][action] = self.probabilities[mystate][action] + toadd
-        self.constraint_current_state_probability(toadd, action)
+        if self.use_C:
+            self.constraint_current_state_probability(toadd * (1/self.C[mystate]), action)
+        else:
+            self.constraint_current_state_probability(toadd, action)
 
 #----------------------------------------------------------------------
 
