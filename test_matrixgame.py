@@ -21,18 +21,18 @@ game.set_qvalue(2,0,-1,None)
 game.add_players(gleipnir.PHCPlayer(3, 1, 0, 0.01, 0.0, 0.01), gleipnir.PHCPlayer(3, 1, 0, 1, 0.0, 0.01))
 game.play_n_games(10000)
 
-lineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'matrixgamephc1.png', True)
+lineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'matrixphc.png', True)
 lineplot.append_values('action1', game.player1_stats[0], True)
 lineplot.append_values('action2', game.player1_stats[1], True)
 lineplot.append_values('action3', game.player1_stats[2], True)
 
 lineplot.plot()
 
-lineplot2 = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'matrixgamephc2.png', True)
-lineplot2.append_values('action1', game.player2_stats[0], True)
-lineplot2.append_values('action2', game.player2_stats[1], True)
-lineplot2.append_values('action3', game.player2_stats[2], True)
-lineplot2.plot()
+#~ lineplot2 = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'matrixgamephc2.png', True)
+#~ lineplot2.append_values('action1', game.player2_stats[0], True)
+#~ lineplot2.append_values('action2', game.player2_stats[1], True)
+#~ lineplot2.append_values('action3', game.player2_stats[2], True)
+#~ lineplot2.plot()
 
 print(game.player2_stats[0])
 
@@ -51,7 +51,7 @@ wolfgame.set_qvalue(2,0,-1,None)
 wolfgame.add_players(gleipnir.WolfPlayer(3, 1, 0, 1.0, 0.0, 0.035, 0.07, True), gleipnir.WolfPlayer(3, 1, 0, 1, 0.0, 0.35, 0.7, True))
 wolfgame.play_n_games(10000)
 
-wolflineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'wolf_matrixgamephc1.png', True)
+wolflineplot = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'matrixwolf.png', True)
 wolflineplot.value_list.append(plotting.PlotElement('action1', wolfgame.player1_stats[0]))
 wolflineplot.value_list.append(plotting.PlotElement('action2', wolfgame.player1_stats[1]))
 wolflineplot.value_list.append(plotting.PlotElement('action3', wolfgame.player1_stats[2]))
@@ -59,11 +59,11 @@ wolflineplot.plot()
 
 #check_correct(wolfgame.player1_stats[0], wolfgame.player1_stats[1], wolfgame.player1_stats[2])
 
-wolflineplot2 = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'wolf_matrixgamephc2.png', True)
-wolflineplot2.value_list.append(plotting.PlotElement('action1', wolfgame.player2_stats[0]))
-wolflineplot2.value_list.append(plotting.PlotElement('action2', wolfgame.player2_stats[1]))
-wolflineplot2.value_list.append(plotting.PlotElement('action3', wolfgame.player2_stats[2]))
-wolflineplot2.plot()
+#~ wolflineplot2 = plotting.LinePlot('Action selection probability', 'Probability', 'Games', 'wolf_matrixgamephc2.png', True)
+#~ wolflineplot2.value_list.append(plotting.PlotElement('action1', wolfgame.player2_stats[0]))
+#~ wolflineplot2.value_list.append(plotting.PlotElement('action2', wolfgame.player2_stats[1]))
+#~ wolflineplot2.value_list.append(plotting.PlotElement('action3', wolfgame.player2_stats[2]))
+#~ wolflineplot2.plot()
 
 ##for debugging
 #print("wolfgame stats action 1")

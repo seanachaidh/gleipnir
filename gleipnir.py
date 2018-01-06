@@ -121,6 +121,7 @@ class PHCPlayer(Player):
     def __init__(self, actions, states, initialstate = 0, alpha = 1.0, gamma = 0.0, delta = 0.2):
         super(PHCPlayer, self).__init__(actions, states, initialstate, alpha, gamma) #TODO: Nakijken of ik self aan init moet meegeven
         self.delta = delta
+        self.steps = 1
 
     def update_probability(self, action):
         mystate = self.state
@@ -143,6 +144,7 @@ class WolfPlayer(Player):
         self.l_delta = l_delta
         self.C = StateManager(actions, lambda x: 0, False)
         self.use_C = use_C
+        self.steps = 1
         
         #self.average_policy =  [[1/actions for _ in range(actions)] for _ in range(states)]
         self.average_policy = StateManager(actions, lambda x: 1/x)
@@ -284,7 +286,7 @@ class Game:
             action_player2 = self.player2.select_action()
             p1_next, p2_next = self.next_states(self.player1.state, action_player1, self.player2.state, action_player2)
 
-        rewards = self.get_rewards(action_player1, self.player1.state, action_player2, self.player2.state)
+        rewards = self.get_rewards(self.player1.state, p1_next, self.player2.state, p2_next)
         self.player1.observe_reward(rewards[0], action_player1, p1_next)
         self.player2.observe_reward(rewards[1], action_player2, p2_next)
 
@@ -302,7 +304,7 @@ class Game:
         
     #Methods to implement. Supposed to return a 2-tuple
     #One for each player corresponding to an element
-    def get_rewards(self, action1, state1, action2, state2):
+    def get_rewards(self, prevstate1, nextstate1, prevstate2, nextstate2):
         raise NotImplementedError('You must implement this method')
         
     def play_n_games(self, n):
@@ -316,14 +318,45 @@ class MatrixGame(Game):
         
         self.player1_stats = [list() for _ in range(nactions)]
         self.player2_stats = [list() for _ in range(nactions)]
+    
+    def play_game(self):
+        if self.player1 is None or self.player2 is None:
+            raise RuntimeError('Players not properly set')
+            
+        #Record some stats
+        self.player1.record_statistics()
+        self.player2.record_statistics()
+        self.record_statistics()
+
+        action_player1 = self.player1.select_action()
+        if self.randomize:
+            action_player2 = randint(0, self.nactions-1)
+        else:
+            action_player2 = self.player2.select_action()
         
+        p1_next, p2_next = self.next_states(self.player1.state, action_player1, self.player2.state, action_player2)
+
+        rewards = self.get_rewards(self.player1.state, action_player1, self.player2.state, action_player2)
+        print("matrix rewards:", rewards)
+        self.player1.observe_reward(rewards[0], action_player1, p1_next)
+        self.player2.observe_reward(rewards[1], action_player2, p2_next)
+
+        self.player1.update_probability(action_player1)
+        self.player2.update_probability(action_player2)
+
+        self.player1.move(p1_next)
+        self.player2.move(p2_next)
+        
+        print('current state player1:', self.player1.state)
+        print('current state player2:', self.player2.state)
+    
     def record_statistics(self):
         for a in range(len(self.player1.probabilities[self.player1.state])):
             self.player1_stats[a].append(self.player1.probabilities[self.player1.state][a])
         for a in range(len(self.player2.probabilities[self.player2.state])):
             self.player2_stats[a].append(self.player2.probabilities[self.player2.state][a])        
     
-    def next_states(self, player1_state, player1_action, player2_state, player2_action):
+    def next_states(self, prevstate1, nextstate1, prevstate2, nextstate2):
         return (0, 0)
 
     #There is no difference in states, we can just skip the while loop.
@@ -333,7 +366,7 @@ class MatrixGame(Game):
     def set_qvalue(self, action1, action2, mean, stdDev):
         self.QMatrix[action1][action2] = QValue(mean, stdDev)
 
-    def get_rewards(self, action1, state1, action2, state2):
+    def get_rewards(self, prevstate1, action1, prevstate2, action2):
         rew1 = self.QMatrix[action1][action2].get_reward()
         # Return the tuple. Player two always gets the oposite reward
         return (rew1, -rew1)
@@ -446,12 +479,11 @@ class GridworldGame(Game):
         #~ else:
             #~ return 0
     
-    def get_rewards(self, action1, state1, action2, state2):
-        s1 = int(state1.split('|')[0])
-        s2 = int(state1.split('|')[1])
+    def get_rewards(self, prevstate1, nextstate1, prevstate2, nextstate2):
+        s1 = int(prevstate1.split('|')[0])
+        s2 = int(prevstate1.split('|')[1])
         
-        nextstates = self.next_states(state1, action1, state2, action2)[0].split('|')
-        
+        nextstates = nextstate1.split('|')
         
         rew1 = self.calculate_reward(s1, int(nextstates[0]))
         rew2 = self.calculate_reward(s2, int(nextstates[1]))
@@ -479,8 +511,8 @@ class SoccerGame(Game):
         return False
     
     def state_to_coordinate(self,state):
-        x = state - 1 // self.rows
-        y = state - 1 % self.columns
+        x = state // self.rows
+        y = state % self.columns
         
         return (x + 1, y + 1)
         
@@ -492,7 +524,7 @@ class SoccerGame(Game):
             else:
                 retval = state - self.columns
         elif action == 1:
-            if (player1_state - (self.columns - 1)) % self.columns == 0:
+            if (state - (self.columns - 1)) % self.columns == 0:
                 retval = state
             else:
                 retval = state + 1
@@ -508,16 +540,43 @@ class SoccerGame(Game):
                 retval = state - 1
         return retval
         
+    def is_winning(self, player, player_number):
+        playstate = player.state.split('|')
+        if player_number == 1:
+            toreach = self.player2_goal
+        else:
+            toreach = self.player1_goal
+        
+        if int(playstate[0]) == int(playstate[2]) == toreach:
+            return True
+        else:
+            return False
+    
+    def play_till_the_end(self):
+        play1_win = False
+        play2_win = False
+        
+        while play1_win == False and play2_win == False:
+            self.play_game()
+            play1_win = self.is_winning(self.player1, 1)
+            play2_win = self.is_winning(self.player2, 2)
+        if play1_win:
+            return 1
+        elif play2_win:
+            return 2
+        else:
+            raise RuntimeError('we ran into an error')
+        
     def next_states(self, player1_state, player1_action, player2_state, player2_action):
         currentP1State = int(player1_state.split('|')[0])
-        currentP2State = int(player2_state.split('|')[0])
+        currentP2State = int(player1_state.split('|')[1])
         
         # The ball should be for both players in the same spot
         # so it does not matter from which player we take it$
-        currentBallState = player1_sate.split('|')[2]
+        currentBallState = int(player1_state.split('|')[2])
         
-        movedP1 = self.calculate_move(currentP1State)
-        movedP2 = self.calculate_move(currentP2State)
+        movedP1 = self.calculate_move(currentP1State, player1_action)
+        movedP2 = self.calculate_move(currentP2State, player2_action)
         
         # Move the ball
         if currentP1State == currentBallState:
@@ -542,8 +601,8 @@ class SoccerGame(Game):
         return (finalP1, finalP2)
     
     def calculate_manhattan(self, statex, statey):
-        location_x = state_to_coordinate(statex)
-        location_y = state_to_coordinate(statey)
+        location_x = self.state_to_coordinate(statex)
+        location_y = self.state_to_coordinate(statey)
         
         return abs(location_x[0] - location_y[0]) + abs(location_x[1] - location_y[1])
     
@@ -555,27 +614,56 @@ class SoccerGame(Game):
         self.ball_location = initball
         self.player1_goal = player1Goal
         self.player2_goal = player2Goal
-    
-    def get_rewards(self, action1, state1, action2, state2):
-        player1NextState = self.NextStates[state1][action1]
-        player2NextState = self.NextStates[state2][action2]
         
-        player1HasBall = (state1 == self.ball_location)
-        player2HasBall = (state2 == self.ball_location)
+    def manhattan_based_reward(self, currentstate, nextstate, goal):
+        oldmat = self.calculate_manhattan(currentstate, goal)
+        newmat = self.calculate_manhattan(nextstate, goal)
+        
+        if newmat < oldmat:
+            return 1
+        elif newmat == oldmat:
+            return -1
+        else:
+            return -2
+    
+    def get_rewards(self, prevstate1, nextstate1, prevstate2, nextstate2):
+        
+        s1 = int(prevstate1.split('|')[0])
+        sn1 = int(nextstate1.split('|')[0])
+        
+        ball_location = int(prevstate1.split('|')[2])
+        
+        s2 = int(prevstate1.split('|')[1])
+        sn2 = int(nextstate1.split('|')[1])
+        
+        player1HasBall = (s1 == ball_location)
+        player2HasBall = (s2 == ball_location)
         
         if player1HasBall:
-            rew1 = self.calculate_manhattan(self.player2_goal, player1NextState)
+            if sn1 == self.player2_goal:
+                rew1 = 100 # weer dat duwtje in de rug
+            else:
+                rew1 = self.manhattan_based_reward(s1, sn1, self.player2_goal)
+                
             #move the ball with the player
-            self.ball_location = player1NextState
+            ball_location = sn1
+        elif sn1 == ball_location:
+            rew1 = 100
         else:
-            rew1 = self.calculate_manhattan(self.ball_location, player1NextState)
+            rew1 = self.manhattan_based_reward(s1, sn1, ball_location)
         
         if player2HasBall:
-            rew2 = self.calculate_manhattan(self.player1_goal, player2NextState)
+            if sn2 == self.player1_goal:
+                rew2 = 100
+            else:
+                rew2 = self.manhattan_based_reward(s2, sn2, self.player2_goal)
+                
             #Move the ball with the player
-            self.ball_location = player2NextState
+            ball_location = sn2
+        elif sn2 == ball_location:
+            rew2 = 100
         else:
-            rew2 = self.calculate_manhattan(self.ball_location, player2NextState)
+            rew2 = self.manhattan_based_reward(s2, sn2, ball_location)
         
         return (rew1, rew2)
         
