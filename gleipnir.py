@@ -1,5 +1,6 @@
 from random import random, gauss, randint
 from operator import itemgetter
+from math import fsum
 
 # Classes for actual QValues as well as estimated ones
 class QValueEstimate:
@@ -83,19 +84,26 @@ class Player:
         
         for a in other_actions:
             self.probabilities[self.state][a] = self.__lower_upper_limit(self.probabilities[self.state][a] + toadd_to_others , 0, 1)
+            
+        #Last stabilization to avoid rounding errors
+        sumprob = fsum(self.probabilities[self.state])
+        for a in range(self.actions):
+            self.probabilities[self.state][a] = self.probabilities[self.state][a]/sumprob
+        
 
     def select_action(self):
         randnum = random()
         elementPr = [(a, self.probabilities[self.state][a]) for a in range(len(self.probabilities[self.state]))]
         currentProbs = sorted(elementPr, key=itemgetter(1))
         currentSum = 0
-        print("probabilities:", elementPr)
+        print("probabilities:", currentProbs)
         print("QValues:", [x.value for x in self.QValueEstimates[self.state]])
         for p in range(len(currentProbs)):
             currentSum += currentProbs[p][1]
             if currentSum >= randnum:
                 print("selected action:", currentProbs[p][0])
                 return currentProbs[p][0]
+        print("impossible to reach line")
 
     def observe_reward(self, reward, action, nextState):
         maxNext = max([x.value for x in self.QValueEstimates[nextState]])
@@ -182,6 +190,11 @@ class WolfPlayer(Player):
         
         for a in other_actions:
             self.average_policy[self.state][a] = self.__lower_upper_limit(self.average_policy[self.state][a] + toadd_to_others, 0, 1)
+
+        #Last stabilization to avoid rounding errors
+        sumprob = fsum(self.average_policy[self.state])
+        for a in range(self.actions):
+            self.average_policy[self.state][a] = self.average_policy[self.state][a]/sumprob
     
     def update_probability(self, action):
         mystate = self.state

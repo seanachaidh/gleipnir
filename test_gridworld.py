@@ -9,8 +9,8 @@ class TestGridWorldClass(unittest.TestCase):
     def setUp(self):
         self.grid = gleipnir.GridworldGame(9, 3, 3, 1)
         #Greed does appearantly pay in this game
-        #~ self.grid.add_players(gleipnir.PHCPlayer(4, 9, '6|8', alpha=1.0), gleipnir.PHCPlayer(4, 9, '8|6', alpha=1.0))
-        self.grid.add_players(gleipnir.WolfPlayer(4, 9, '6|8', 0.4, 0.9, 0.35, 0.7, True), gleipnir.WolfPlayer(4, 9, '8|6', 0.4, 0.9, 0.35, 0.7, True))
+        self.grid.add_players(gleipnir.PHCPlayer(4, 9, '6|8', alpha=0.2, gamma=0.9), gleipnir.PHCPlayer(4, 9, '8|6', alpha=0.2, gamma=0.9))
+        #~ self.grid.add_players(gleipnir.WolfPlayer(4, 9, '6|8', 0.4, 0.9, 0.35, 0.7, True), gleipnir.WolfPlayer(4, 9, '8|6', 0.4, 0.9, 0.35, 0.7, True))
         self.grid.wall_off_state(6, 0)
         self.grid.wall_off_state(8, 0)
         self.grid.wall_off_state(3, 2)
@@ -64,7 +64,7 @@ class TestGridWorldClass(unittest.TestCase):
             self.grid.player2.C = gleipnir.StateManager(4, lambda x: 0, False)
             
         # Creating the plot
-        plot = plotting.LinePlot("gridworld game with Wolf", "Amount of games played", "Amount of steps to goal", "gridplot.png")
+        plot = plotting.LinePlot("gridworld game with PHC", "Amount of games played", "Amount of steps to goal", "gridplot.png")
         plot.append_values("vals", lengths)
         plot.plot()
         
